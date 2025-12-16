@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -e
+set -u
+set -o pipefail
+
+# sort (-t), display full date (-lT) and keep only date and program name (awk)
+find "$(brew --cellar)" -type d -maxdepth 0 | xargs ls -ltT | awk {'printf ("%s\t%s\t%s\t%s\t%s\n", $9,$6,$7,$8,$10)'}
