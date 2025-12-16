@@ -9,6 +9,10 @@ elif [ "$1" == rts ]; then
   url='https://stxt-audiostreaming.akamaized.net/hls/live/2117380/la-1ere/variant-96.m3u8'
 elif [ "$1" == 3i ]; then
   url='https://icecast.gruppocdt.ch/radio3i-256.mp3'
+elif [ "$1" == jazz ]; then
+  url='https://livestreaming-node-2.srg-ssr.ch/srgssr/rsj/aac/96'
+elif [ "$1" == cla ]; then
+  url='https://livestreaming-node-1.srg-ssr.ch/srgssr/rsc_de/aac/96'
 elif [ "$1" == grischa ]; then
   url='https://somedia-3.streaming.deliver.media/radiogrischa_mp3_128?suffix0=webseite&_ic2=1765882061'
 elif [ "$1" == lattemiele ]; then
