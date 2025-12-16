@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -e
+set -u
+
+help() {
+echo "usage: $0 -e extension [-f folder][-h]"
+}
+
+if [ -z "$*" ]; then help; exit; fi 
+
+while getopts "e:f:" opt; do
+    case "${opt}" in
+        e)
+            extension=${OPTARG}
+            ;;
+        f)
+            folder=${OPTARG}
+            ;;
+        h) help ;;
+        *) help ;;
+    esac
+done
+shift $((OPTIND-1))
+
+
+if [[ "$(uname)" == 'Darwin' ]]; then
+   # mac and freebsd do not have -printf option in find
+   # use folder if exists, or . as default folder
+   find ${folder:-.} -name "*.$extension" -print0 | xargs -0 dirname | sort -u
+else
+   find ${folder:-.} -name "*.$extension"  -printf '%h\n' | sort -u
+fi
