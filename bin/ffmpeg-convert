@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Default values
+FOLDER="."
+FFMPEG_EXTENSION=""
+FFMPEG_NEW_EXTENSION=""
+FFMPEG_OVERWRITE=false
+FFMPEG_OPTIONS=
+
+# Function to display the help message
+usage() {
+    echo "Usage: $(basename $0) [-f <folder>] -i <extension> -o <new_extension> [-y] [-e <ffmpeg options>]"
+    echo ""
+    echo "  -f <folder>         Specify the folder to search in. Defaults to the current directory."
+    echo "  -i <extension>      The file extension to filter by (e.g., dff, wav)."
+    echo "  -o <new_extension>  The new file format (e.g., flac)."
+    echo "  -y                  Overwrite existing output files."
+    echo "  -e <ffmpeg options> Additional FFMPEG options."
+    echo ""
+    echo "Example:"
+    echo "  $0 -i wav -o flac"
+    echo "  $0 -f /path/to/files -i wav -o flac -e \"-ac 2 -ar 44100 -c:a pcm_s16le\""
+    exit 1
+}
+
+# Process command-line arguments
+while getopts "hf:i:o:e:y" opt; do
+    case $opt in
+        h) usage; exit 0;;
+        f)
+            FOLDER="$OPTARG"
+            ;;
+        i)
+            FFMPEG_EXTENSION="$OPTARG"
+            ;;
+        o)
+            FFMPEG_NEW_EXTENSION="$OPTARG"            
+            ;;
+        e)
+            FFMPEG_OPTIONS="$OPTARG"
+            ;;
+        y)
+            FFMPEG_OVERWRITE=true
+            ;;        
+        \?)
+            echo "Invalid options: -$OPTARG." >&2           
+            exit 1
+            ;;
+        :)
+            echo "Option -$OPTARG requires an argument." >&2
+            usage
+            exit 1
+            ;;
+            
+    esac
+done
+
+# Forward all remaining options to ffmpeg
+shift $((OPTIND-1))
+    
+# Checks
+if [ -z "$FFMPEG_EXTENSION" ] || [ -z "$FFMPEG_NEW_EXTENSION" ]; then
+  echo "Error:  -i, and -o are required arguments." >&2
+  usage
+  exit 1
+fi
+
+if [ ! -d "$FOLDER" ]; then
+    echo "Error: Folder '$FOLDER' does not exist." >&2
+    exit 1
+fi
+
+echo ""
+echo "Additional options: ${FFMPEG_OPTIONS}"
+echo "Converting to ${FFMPEG_NEW_EXTENSION}"
+echo ""
+
+export FFMPEG_EXTENSION FFMPEG_NEW_EXTENSION FFMPEG_OPTIONS FFMPEG_OVERWRITE
+find "${FOLDER}" -type f -iname "*.$FFMPEG_EXTENSION" -exec bash -c '
+    for input do
+        output="${input%.$FFMPEG_EXTENSION}.${FFMPEG_NEW_EXTENSION}"
+        echo "Converting: $input"
+        if $FFMPEG_OVERWRITE; then
+            if [ -n "$FFMPEG_OPTIONS" ]; then
+                ffmpeg -hide_banner -loglevel error -i "$input" -map_metadata 0 ${FFMPEG_OPTIONS} "$output" -y
+            else
+                ffmpeg -hide_banner -loglevel error -i "$input" -map_metadata 0 "$output" -y
+            fi
+        else
+            if [ -n "$FFMPEG_OPTIONS" ]; then
+                ffmpeg -hide_banner -loglevel error -i "$input" -map_metadata 0 ${FFMPEG_OPTIONS} "$output"
+            else
+                ffmpeg -hide_banner -loglevel error -i "$input" -map_metadata 0 "$output"
+            fi
+        fi
+        touch -r "$input" "$output"
+    done
+' bash {} +
+
+exit 0

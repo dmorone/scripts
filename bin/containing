@@ -2,31 +2,67 @@
 set -e
 set -u
 
-help() {
-echo "usage: $0 -e extension [-f folder][-h]"
+# Default values
+EXTENSION=""
+FOLDER="."  # Current directory by default
+
+# Function to display the help message
+usage() {
+    echo "Usage: $0 [-f <folder>] <extension>"
+    echo ""
+    echo "  -f <folder>    Specify the folder to search in. Defaults to the current directory."
+    echo "  <extension>    The file extension to filter by (e.g., txt, log, py)."
+    echo ""
+    echo "Example:"
+    echo "  $0 -f /path/to/files txt"
+    echo "  $0 py"
+    exit 1
 }
 
-if [ -z "$*" ]; then help; exit; fi 
-
-while getopts "e:f:" opt; do
-    case "${opt}" in
-        e)
-            extension=${OPTARG}
-            ;;
+# Process command-line arguments
+while getopts ":f:" opt; do
+    case $opt in
         f)
-            folder=${OPTARG}
+            FOLDER="$OPTARG"
             ;;
-        h) help ;;
-        *) help ;;
+        \?)
+            echo "Invalid option: -$OPTARG" >&2
+            usage
+            exit 1
+            ;;
+        :)
+            echo "Option -$OPTARG requires an argument." >&2
+            usage
+            exit 1
+            ;;
     esac
 done
+
 shift $((OPTIND-1))
 
+# Check if an extension is provided and nothing else after that
+if [ -z "$EXTENSION" ]; then
+    if [ $# -eq 0 ]; then
+        usage
+    elif [ $# -gt 1 ]; then
+        usage
+    else
+        EXTENSION="$1"
+        shift
+    fi
+fi
+
+# Check if the folder exists
+if [ ! -d "$FOLDER" ]; then
+    echo "Error: Folder '$FOLDER' does not exist." >&2
+    exit 1
+fi
 
 if [[ "$(uname)" == 'Darwin' ]]; then
-   # mac and freebsd do not have -printf option in find
-   # use folder if exists, or . as default folder
-   find ${folder:-.} -name "*.$extension" -print0 | xargs -0 dirname | sort -u
+    # mac and freebsd do not have -printf option in find
+    find "$FOLDER" -name "*.$EXTENSION" -print0 | xargs -0 dirname | sort -u
 else
-   find ${folder:-.} -name "*.$extension"  -printf '%h\n' | sort -u
+    find "$FOLDER" -name "*.$EXTENSION"  -printf '%h\n' | sort -u
 fi
+
+exit 0
