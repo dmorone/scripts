@@ -95,6 +95,7 @@ find "${FOLDER}" -type f -iname "*.$FFMPEG_EXTENSION" -exec bash -c '
             fi
         fi
         touch -r "$input" "$output"
+        rm "$input"
     done
 ' bash {} +
 
