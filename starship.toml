@@ -1,15 +1,15 @@
 # General options
 command_timeout = 2000 # wait for java, python etc.
 
+# Packages
+# [aws]
+# disabled = true
 
-[aws]
-disabled = true
+# [gcloud]
+# disabled = true
 
-[gcloud]
-disabled = true
-
-[azure]
-disabled = true
+# [azure]
+# disabled = true
 
 # [package]
 # disabled = true
