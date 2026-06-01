@@ -1,4 +1,5 @@
 # ZSH. Install starship
+# Test
 export STARSHIP_CONFIG=~/.scripts/starship.toml
 eval "$(starship init zsh)" # Install with brew
 # remember to install a font with icons
