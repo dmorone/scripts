@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+#
+# run-pi-jail.sh
+#
+# Runs the pi coding agent inside a restricted sandbox where only two local
+# directories are writable:
+#   - ~/.pi      (configuration / agent state)
+#   - ./workspace (project files)
+#
+# All other paths are mounted read-only (Linux) or blocked for writes (macOS).
+# Kernel capabilities are dropped to the absolute minimum.
+#
+# Dependencies:
+#   - Linux: bubblewrap (bwrap)
+#   - macOS: sandbox-exec (ships with the OS)
+#
+
+set -euo pipefail
+
+RUN_DIR="$(pwd)"
+WORKSPACE_DIR="${RUN_DIR}/workspace"
+TMP_DIR="${RUN_DIR}/.tmp"
+PI_CONFIG_DIR="${HOME}/.pi"
+
+# ---------------------------------------------------------------------------
+# Ensure required directories exist
+# ---------------------------------------------------------------------------
+mkdir -p "${WORKSPACE_DIR}" "${TMP_DIR}" "${PI_CONFIG_DIR}"
+
+# ---------------------------------------------------------------------------
+# Common environment: restrict shell history so subshells don't try to
+# write outside the allowed zones.
+# ---------------------------------------------------------------------------
+export HISTFILE=/dev/null
+export TMPDIR="${TMP_DIR}"
+
+# ---------------------------------------------------------------------------
+# OS-specific sandbox setup
+# ---------------------------------------------------------------------------
+OS="$(uname -s)"
+
+if [[ "${OS}" == "Linux" ]]; then
+    if ! command -v bwrap &>/dev/null; then
+        echo "Error: bubblewrap (bwrap) is required on Linux." >&2
+        echo "  Debian/Ubuntu: sudo apt install bubblewrap" >&2
+        echo "  Fedora:        sudo dnf install bubblewrap" >&2
+        echo "  Arch:          sudo pacman -S bubblewrap" >&2
+        exit 1
+    fi
+
+    # bubblewrap command:
+    #   --ro-bind / /          expose entire host FS read-only
+    #   --bind <src> <dst>     overlay writable dirs on top
+    #   --tmpfs /tmp           fresh, in-memory /tmp
+    #   --dev /dev             minimal pseudo-devices
+    #   --proc /proc           procfs (read-only by default)
+    #   --unshare-{user,uts,ipc,pid,cgroup}  isolate namespaces
+    #   --share-net            keep network for LLM API calls
+    #   --cap-drop ALL         drop every Linux capability
+    #   --die-with-parent      auto-clean when this script exits
+    #   --new-session          prevent terminal signal injection
+    #
+    # Note: network is deliberately shared.  Remove --share-net and add
+    # --unshare-net if you need an offline-only jail.
+    exec bwrap \
+        --ro-bind / / \
+        --bind "${PI_CONFIG_DIR}" "${PI_CONFIG_DIR}" \
+        --bind "${WORKSPACE_DIR}" "${WORKSPACE_DIR}" \
+        --tmpfs /tmp \
+        --dev /dev \
+        --proc /proc \
+        --unshare-user \
+        --unshare-uts \
+        --unshare-ipc \
+        --unshare-pid \
+        --unshare-cgroup \
+        --share-net \
+        --cap-drop ALL \
+        --die-with-parent \
+        --new-session \
+        --chdir "${RUN_DIR}" \
+        --setenv HOME "${HOME}" \
+        --setenv TMPDIR "${TMP_DIR}" \
+        --setenv HISTFILE /dev/null \
+        -- pi "$@"
+
+elif [[ "${OS}" == "Darwin" ]]; then
+    # macOS does not support unprivileged chroot or user namespaces.
+    # The equivalent primitive is the Seatbelt sandbox (sandbox-exec).
+    #
+    # The profile below starts from 'allow default' (permit everything) and
+    # then explicitly denies all file-write operations.  Writability is
+    # re-granted only for the three whitelisted subpaths.
+    #
+    # This is coarser than a true chroot (the whole FS is still visible)
+    # but achieves the stated goal: pi cannot mutate anything except
+    # ~/.pi, ./workspace, and the workspace-local temp directory.
+    #
+    # Networks, process execution, and IPC remain available because the
+    # agent needs them.
+
+    SANDBOX_PROFILE="(version 1)
+(allow default)
+(deny file-write*)
+(allow file-write*
+    (subpath \"${PI_CONFIG_DIR}\")
+    (subpath \"${WORKSPACE_DIR}\")
+    (subpath \"${TMP_DIR}\")
+)
+"
+
+    exec sandbox-exec -p "${SANDBOX_PROFILE}" pi "$@"
+
+else
+    echo "Error: unsupported OS '${OS}'." >&2
+    echo "This script supports Linux (bubblewrap) and macOS (sandbox-exec)." >&2
+    exit 1
+fi
