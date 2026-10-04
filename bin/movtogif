@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Function to display the help message
+usage() {
+    echo "Creates a gif file from a screen recording .mov created with macOS screen recording tool"
+    echo ""
+    echo "Usage: $(basename $0) input"
+    echo ""
+    echo "Example:"
+    echo "  $0 screen_recording.mov"
+    exit 1
+}
+
+INPUT=$1
+
+ffmpeg -i "$INPUT" -pix_fmt rgb24 -r 10 -f gif temp.gif
+
+magick convert -layers Optimize temp.gif "${INPUT%.*}.gif"
+
+rm temp.gif
+
+exit 0
