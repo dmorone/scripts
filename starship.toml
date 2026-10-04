@@ -1,5 +1,6 @@
 # General options
 command_timeout = 2000 # wait for java, python etc.
+scan_timeout = 2000 # wait for remote folders
 
 # Packages
 # [aws]
