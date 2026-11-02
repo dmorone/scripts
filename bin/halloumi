@@ -1,18 +1,29 @@
 #!/usr/bin/env bash
 set -e
 set -u
-
+set -o pipefail
 
 llama-server \
-    -hf unsloth/Qwen3.8-27B-GGUF:UD-IQ4_XS \
-    --no-mmproj \
-    --fit on \
-    --jinja \
+    --model /Users/diegomorone/.cache/models/Qwen3.8-27B-UD-Q4_K_S.gguf \
+    --ctx-size 16384 \
+    --parallel 1 \
+    --cache-type-k q8_0 \
+    --cache-type-v q8_0 \
+    --host 0.0.0.0 \
+    --port 8080 \
+    -fit off \
+    --spec-type draft-dflash \
+    --spec-draft-model /Users/diegomorone/.cache/models/Qwen3.8-27B-DFlash2-Q4_K_M.gguf \
+    --spec-draft-n-max 3 \
+    --spec-draft-type-k q8_0 \
+    --spec-draft-type-v q8_0 \
+    --mmproj /Users/diegomorone/.cache/models/mmproj-F16.gguf \
+    --no-mmproj-offload \
+    --image-min-tokens 2048 \
+    --reasoning-preserve \
     --temp 1.0 \
     --top-p 0.95 \
     --top-k 20 \
     --min-p 0.0 \
     --presence-penalty 0.0 \
-    --repeat-penalty 1.0 \
-    --reasoning on -c 32768
-
+    --repeat-penalty 1.0
