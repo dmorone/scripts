@@ -31,6 +31,15 @@ elif [ "$_sh" = bash ]; then
   shopt -s autocd 2>/dev/null # bash >= 4
 fi
 
+# Search past commands matching the typed prefix with up/down arrows
+if [ "$_sh" = zsh ]; then
+  bindkey "^[[A" history-search-backward
+  bindkey "^[[B" history-search-forward
+elif [ "$_sh" = bash ] && [[ $- == *i* ]]; then
+  bind '"\e[A": history-search-backward'
+  bind '"\e[B": history-search-forward'
+fi
+
 # fuzzy search. Install fzf with brew or apt. Use Ctrl+R
 if [ -n "$_sh" ] && command -v fzf >/dev/null 2>&1; then
   eval "$(fzf --$_sh)"
